@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Клікабельний прототип АІС «Диспетчер» для маршрутного перевізника на мікроавтобусах «Пежо» у Львові. Навчальний проєкт.">
+<title>АІС «Диспетчер»</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Unbounded:wght@600;700&display=swap">
+<style>
+/* Layout: робоча панель перевізника – верхня смуга з ролями, під нею екран обраної ролі; мобільні ролі – у рамці телефона */
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --ink:#14202b; --muted:#5b6876; --line:#d5dbe2;
+  --accent:#e0a100; --accent-ink:#1a1300; --chip:#e4e9ee;
+  --ok:#1f8a4c; --warn:#c77700; --bad:#c62f2f; --idle:#7b8794;
+  --r25:#2a6fdb; --r35:#9a3fc1; --r45:#d4572a; --r9:#13917d;
+  --f-display:"Unbounded","Golos Text",system-ui,sans-serif;
+  --f-body:"Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f161d; --panel:#17212b; --ink:#e6edf3; --muted:#93a1b0; --line:#2a3743;
+  --accent:#f2b51d; --accent-ink:#1a1300; --chip:#22303c;
+  --ok:#41b874; --warn:#e9a23b; --bad:#ef5b5b; --idle:#8b98a6;
+  --r25:#5a95f0; --r35:#bb6fe0; --r45:#ee7d52; --r9:#3cc2a9; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f161d; --panel:#17212b; --ink:#e6edf3; --muted:#93a1b0; --line:#2a3743;
+  --accent:#f2b51d; --accent-ink:#1a1300; --chip:#22303c;
+  --ok:#41b874; --warn:#e9a23b; --bad:#ef5b5b; --idle:#8b98a6;
+  --r25:#5a95f0; --r35:#bb6fe0; --r45:#ee7d52; --r9:#3cc2a9; color-scheme:dark}
+*{box-sizing:border-box} [hidden]{display:none!important} img{max-width:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;margin:0}
+.wrap{max-width:1280px;margin:0 auto;padding-inline:16px;padding-block:0 32px}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.topin{max-width:1280px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center}
+.brand{display:flex;align-items:baseline;gap:10px;margin-right:auto}
+.brand b{font-family:var(--f-display);font-size:18px;letter-spacing:.01em}
+.brand span{color:var(--muted);font-size:13px}
+.clock{font-family:var(--f-mono);font-size:14px;color:var(--muted)}
+.roles{display:flex;gap:4px;background:var(--chip);padding:4px;border-radius:10px;flex-wrap:wrap}
+.roles button{font:inherit;font-weight:600;border:0;background:transparent;color:var(--ink);padding:7px 14px;border-radius:7px;cursor:pointer}
+.roles button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.note{font-size:12.5px;color:var(--muted);padding:10px 0 0}
+h2{font-family:var(--f-display);font-size:17px;font-weight:600;margin:0;text-wrap:balance}
+h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px;font-weight:600}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.grid{display:grid;gap:16px;margin-top:16px}
+.disp{grid-template-columns:minmax(0,1fr) 340px}
+@media (max-width:900px){.disp{grid-template-columns:1fr}}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--chip);white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor;display:inline-block}
+.s-ok{color:var(--ok)} .s-warn{color:var(--warn)} .s-bad{color:var(--bad)} .s-idle{color:var(--idle)}
+.rnum{font-family:var(--f-mono);font-weight:700;color:#fff;border-radius:6px;padding:1px 8px;font-size:14px}
+/* схеми маршрутів */
+.route{padding:12px 0;border-top:1px solid var(--line)}
+.route:first-of-type{border-top:0}
+.rhead{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.rhead .nm{font-weight:600;min-width:0}
+.rhead .st{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.lane{overflow-x:auto}
+.lane svg{display:block;min-width:620px;width:100%;height:auto}
+.lane text{font-family:var(--f-body);font-size:11px;fill:var(--muted)}
+.bus{cursor:pointer}
+.bus text{font-family:var(--f-mono);font-size:10px;font-weight:700;fill:var(--ink)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.tscroll{overflow-x:auto}
+.inc{border:1px solid var(--line);border-left:4px solid var(--bad);border-radius:8px;padding:10px 12px;display:grid;gap:6px}
+.inc.done{border-left-color:var(--ok);opacity:.75}
+.stack{display:grid;gap:10px}
+.btn{font:inherit;font-weight:600;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 12px;border-radius:8px;cursor:pointer}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.btn.dng{background:var(--bad);color:#fff;border-color:transparent}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.empty{color:var(--muted);font-size:14px}
+/* телефон */
+.phonewrap{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;margin-top:16px}
+.phone{width:min(380px,100%);background:var(--panel);border:1px solid var(--line);border-radius:28px;padding:18px 16px 22px;box-shadow:0 10px 30px rgba(10,20,30,.10)}
+.phone .bar{display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:12px;color:var(--muted);margin-bottom:12px}
+.side{flex:1 1 300px;min-width:0;max-width:560px}
+.card{border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:6px}
+.row{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.big{font-family:var(--f-display);font-size:26px;font-weight:700}
+.steps{display:grid;gap:6px;margin:4px 0 0;padding:0;list-style:none}
+.steps li{display:flex;gap:8px;align-items:center;font-size:14px}
+.ok-mark{color:var(--ok);font-weight:700}
+select,textarea{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px;width:100%}
+label.l{font-size:13px;color:var(--muted);display:grid;gap:4px}
+.eta{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.eta .min{font-family:var(--f-display);font-size:20px}
+.banner{border-radius:10px;padding:10px 12px;background:color-mix(in srgb,var(--warn) 16%,var(--panel));border:1px solid color-mix(in srgb,var(--warn) 45%,var(--line));font-size:14px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:20;max-width:calc(100% - 32px)}
+/* керівник */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:16px}
+@media (max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi .v{font-family:var(--f-display);font-size:28px;font-weight:700;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:13px;color:var(--muted)}
+.meter{height:8px;background:var(--chip);border-radius:4px;position:relative;margin-top:8px;overflow:hidden}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--ok);border-radius:4px}
+.meter b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink)}
+.mgr{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)}
+@media (max-width:900px){.mgr{grid-template-columns:1fr}}
+.bars{display:grid;gap:10px}
+.barrow{display:grid;grid-template-columns:52px 1fr 92px;gap:10px;align-items:center;font-size:14px}
+.track{height:22px;background:var(--chip);border-radius:5px;display:flex;overflow:hidden}
+.track span{height:100%}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:10px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top"><div class="topin">
+  <div class="brand"><b>Диспетчер</b><span>ТОВ «ЛьвівМаршрутСервіс»</span></div>
+  <span class="clock mono" id="clock">07:42</span>
+  <div class="roles" role="tablist" aria-label="Роль користувача">
+    <button role="tab" id="t-disp" aria-selected="true" data-role="disp">Диспетчер</button>
+    <button role="tab" id="t-drv" aria-selected="false" data-role="drv">Водій</button>
+    <button role="tab" id="t-pas" aria-selected="false" data-role="pas">Пасажир</button>
+    <button role="tab" id="t-mgr" aria-selected="false" data-role="mgr">Керівник</button>
+  </div>
+</div></header>
+
+<main class="wrap">
+  <p class="note">Навчальний прототип до курсового проєкту. Фірма вигадана, номери авто і числа умовні. Маршрути взято зі Львова як приклад, схеми спрощені.</p>
+
+  <!-- ДИСПЕТЧЕР -->
+  <section id="v-disp">
+    <div class="grid disp">
+      <div class="panel">
+        <div class="row" style="flex-wrap:wrap"><h2>Рух на лінії</h2><span class="chip" id="sum-line"></span></div>
+        <div id="routes" style="margin-top:6px"></div>
+      </div>
+      <div class="stack" style="align-content:start">
+        <div class="panel"><h3>Інциденти</h3><div class="stack" id="incidents"></div></div>
+        <div class="panel"><h3>Резерв у парку</h3><div class="stack" id="reserve"></div></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <h3>Наряди на сьогодні</h3>
+      <div class="tscroll"><table id="orders"></table></div>
+    </div>
+  </section>
+
+  <!-- ВОДІЙ -->
+  <section id="v-drv" hidden>
+    <div class="phonewrap">
+      <div class="phone" aria-label="Застосунок водія">
+        <div class="bar"><span id="drv-clock">07:42</span><span>Водій</span></div>
+        <div class="stack" id="drv"></div>
+      </div>
+      <div class="side panel">
+        <h3>Що показує екран</h3>
+        <p style="margin:0 0 8px">Водій бачить свій наряд, результат медогляду і техогляду, поточний рейс і наступну зупинку. Кнопка «Повідомити про поломку» створює інцидент. Диспетчер одразу бачить його у своїй панелі, а пасажири отримують попередження про зміни в русі.</p>
+        <p style="margin:0" class="empty">Спробуйте: натисніть «Повідомити про поломку», потім відкрийте роль «Диспетчер» і випустіть авто з резерву.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ПАСАЖИР -->
+  <section id="v-pas" hidden>
+    <div class="phonewrap">
+      <div class="phone" aria-label="Застосунок пасажира">
+        <div class="bar"><span id="pas-clock">07:42</span><span>Пасажир</span></div>
+        <div class="stack">
+          <label class="l" for="pas-route">Маршрут
+            <select id="pas-route"></select></label>
+          <label class="l" for="pas-stop">Зупинка
+            <select id="pas-stop"></select></label>
+          <div id="pas-banner"></div>
+          <div id="pas-eta"></div>
+          <details class="card">
+            <summary style="cursor:pointer;font-weight:600">Залишити скаргу</summary>
+            <form id="pas-form" class="stack" style="margin-top:8px">
+              <label class="l" for="pas-type">Тема
+                <select id="pas-type"><option>Авто не приїхало за розкладом</option><option>Водій не оголошував зупинки</option><option>Не працював валідатор</option><option>Інше</option></select></label>
+              <label class="l" for="pas-text">Опис<textarea id="pas-text" rows="3">Чекала 20 хв на зупинці, авто не було.</textarea></label>
+              <button class="btn pri" type="submit">Надіслати скаргу</button>
+            </form>
+          </details>
+        </div>
+      </div>
+      <div class="side panel">
+        <h3>Що показує екран</h3>
+        <p style="margin:0 0 8px">Пасажир обирає маршрут і зупинку. Система бере координати з GPS-трекерів і рахує, через скільки хвилин приїде найближче авто. Якщо на маршруті інцидент, зверху з'являється попередження.</p>
+        <p style="margin:0" class="empty">Оплата проїзду з 16.05.2026: застосунок або LeoCard – 23 грн, банківська картка – 26 грн, готівка – 30 грн, студентська LeoCard – 11,5 грн.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- КЕРІВНИК -->
+  <section id="v-mgr" hidden>
+    <div class="kpis" id="kpis"></div>
+    <div class="grid mgr">
+      <div class="panel">
+        <div class="row"><h2>Виручка за сьогодні по маршрутах</h2></div>
+        <div class="bars" id="rev" style="margin-top:12px"></div>
+        <div class="legend"><span><i style="background:var(--r25)"></i>LeoCard / застосунок</span><span><i style="background:var(--r9)"></i>Банківська картка</span><span><i style="background:var(--accent)"></i>Готівка</span><span><i style="background:var(--idle)"></i>Пільгові</span></div>
+      </div>
+      <div class="panel">
+        <h3>Технічне обслуговування</h3>
+        <div class="tscroll"><table id="to"></table></div>
+      </div>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const ROUTES=[
+ {id:"25",color:"var(--r25)",name:"вул. Заклинських – ТРЦ King Cross Leopolis",stops:["Заклинських","Замарстинівська","пр. Чорновола","Автовокзал","Кульпарківська","вул. Наукова","Стрийська","King Cross"],plan:5},
+ {id:"35",color:"var(--r35)",name:"вул. Польова – с. Солонка",stops:["вул. Польова","Б. Хмельницького","Підвальна","Соборна","І. Франка","Зелена","Стрийська","с. Солонка"],plan:4},
+ {id:"45",color:"var(--r45)",name:"ТРЦ «Вікторія Гарден» (кільцевий)",stops:["Вікторія Гарден","Наукова","Кн. Ольги","Сахарова","Коперника","пр. Свободи","Галицька","І. Франка"],plan:4},
+ {id:"9",color:"var(--r9)",name:"с. Муроване – Автовокзал",stops:["с. Муроване","Б. Хмельницького","Липинського","пр. Чорновола","пр. Свободи","Дорошенка","Стрийська","Автовокзал"],plan:4},
+];
+const DRIVERS=["Петро Гнатів","Ігор Сало","Василь Кузь","Андрій Мельник","Роман Дідух","Олег Ткач","Тарас Бойко","Степан Лис","Юрій Пак","Микола Гук","Іван Чорній","Богдан Рибак","Олесь Кіт","Назар Сокіл","Денис Гай","Віктор Ясінь","Михайло Бук","Ярослав Дмитрів","Остап Влох","Любомир Кріль","Григорій Сус"];
+let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return (seed-1)/2147483646};
+const plate=()=>`ВС ${String(1000+Math.floor(rnd()*8999))} ${["АК","АМ","ВТ","ІН","ЕХ","КА"][Math.floor(rnd()*6)]}`;
+const S={t:7*60+42,buses:[],reserve:[],incidents:[],complaints:0,banner:{},rev:{}};
+let di=0;
+ROUTES.forEach(r=>{S.rev[r.id]={leo:0,card:0,cash:0,lg:0};
+  for(let i=0;i<r.plan;i++){
+    const b={plate:plate(),route:r.id,driver:DRIVERS[di++],pos:(i/r.plan+rnd()*0.08)%1,dir:i%2?-1:1,delay:Math.round(rnd()*7-2),status:"line",run:1+Math.floor(rnd()*4),km:3000+Math.floor(rnd()*13000)};
+    if(r.id==="35"&&i===2){b.delay=7}
+    S.buses.push(b)}});
+S.buses[0].plate="ВС 4417 АМ";S.buses[0].driver="Петро Гнатів";S.buses[0].km=14650;S.buses[0].delay=1;
+for(let i=0;i<3;i++)S.reserve.push({plate:plate(),km:2000+Math.floor(rnd()*9000),driver:DRIVERS[di++]});
+const ME=S.buses[0];
+const $=s=>document.querySelector(s);
+const fmt=m=>`${String(Math.floor(m/60)%24).padStart(2,"0")}:${String(Math.floor(m)%60).padStart(2,"0")}`;
+const route=id=>ROUTES.find(r=>r.id===id);
+function stat(b){if(b.status==="incident")return["Інцидент","s-bad"];if(b.delay>5)return[`Відстає ${b.delay} хв`,"s-warn"];return["За графіком","s-ok"]}
+function toast(t){const e=$("#toast");e.textContent=t;e.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,2600)}
+
+/* ---- диспетчер ---- */
+function renderDisp(){
+  const line=S.buses.filter(b=>b.status!=="repair");
+  $("#sum-line").innerHTML=`<span class="dot s-ok"></span>${line.filter(b=>b.status==="line").length} на лінії · ${S.incidents.filter(i=>!i.done).length} інцидент(и)`;
+  $("#routes").innerHTML=ROUTES.map(r=>{
+    const bs=line.filter(b=>b.route===r.id);
+    const late=bs.filter(b=>b.delay>5&&b.status==="line").length, inc=bs.filter(b=>b.status==="incident").length;
+    const W=760,x0=62,x1=698,y=44;
+    const stops=r.stops.map((s,i)=>{const x=x0+(x1-x0)*i/(r.stops.length-1);return`<circle cx="${x}" cy="${y}" r="5" fill="var(--panel)" stroke="${r.color}" stroke-width="3"/><text x="${x}" y="${y+24}" text-anchor="middle">${s}</text>`}).join("");
+    const buses=bs.map(b=>{const x=x0+(x1-x0)*b.pos;const [l,c]=stat(b);const col=c==="s-bad"?"var(--bad)":c==="s-warn"?"var(--warn)":"var(--ok)";
+      return`<g class="bus" transform="translate(${x},${y-20})"><title>${b.plate} · ${b.driver} · ${l}</title><rect x="-30" y="-11" width="60" height="18" rx="4" fill="var(--panel)" stroke="${col}" stroke-width="2"/><text text-anchor="middle" y="2">${b.plate.slice(3,7)}</text><path d="M-4,7 L4,7 L0,13 z" fill="${col}"/></g>`}).join("");
+    return`<div class="route"><div class="rhead"><span class="rnum" style="background:${r.color}">${r.id}</span><span class="nm">${r.name}</span>
+      <span class="st"><span class="chip">${bs.length} з ${r.plan} авто</span>${late?`<span class="chip s-warn"><span class="dot"></span>${late} відстає</span>`:""}${inc?`<span class="chip s-bad"><span class="dot"></span>інцидент</span>`:""}</span></div>
+      <div class="lane"><svg viewBox="0 0 ${W} 80" role="img" aria-label="Схема маршруту ${r.id}"><line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="${r.color}" stroke-width="5" stroke-linecap="round"/>${stops}${buses}</svg></div></div>`}).join("");
+  $("#incidents").innerHTML=S.incidents.length?S.incidents.slice().reverse().map(i=>`<div class="inc ${i.done?"done":""}">
+      <div class="row"><b>${i.type}</b><span class="mono" style="font-size:13px">${fmt(i.t)}</span></div>
+      <div style="font-size:14px">Маршрут №${i.route} · <span class="mono">${i.plate}</span> · ${i.driver}</div>
+      ${i.done?`<div class="s-ok" style="font-size:14px;font-weight:600">Вирішено: на лінію вийшло <span class="mono">${i.repl}</span></div>`:
+      `<div class="row" style="flex-wrap:wrap"><span class="chip s-bad"><span class="dot"></span>Потрібна заміна</span><button class="btn pri" data-fix="${i.id}" ${S.reserve.length?"":"disabled"}>Випустити резерв</button></div>`}</div>`).join(""):`<p class="empty" style="margin:0">Інцидентів немає. Їх створює водій у своєму застосунку.</p>`;
+  $("#reserve").innerHTML=S.reserve.length?S.reserve.map(r=>`<div class="row"><span class="mono">${r.plate}</span><span style="font-size:13px;color:var(--muted)">${r.driver}</span><span class="chip s-idle">резерв</span></div>`).join(""):`<p class="empty" style="margin:0">Резерву немає.</p>`;
+  $("#orders").innerHTML=`<thead><tr><th>Маршрут</th><th>Авто</th><th>Водій</th><th>Рейс</th><th>Статус</th><th>Пробіг, км</th></tr></thead><tbody>`+
+    S.buses.map(b=>{const [l,c]=b.status==="repair"?["У ремонті","s-idle"]:stat(b);return`<tr><td><span class="rnum" style="background:${route(b.route).color}">${b.route}</span></td><td class="mono">${b.plate}</td><td>${b.driver}</td><td class="mono">${b.status==="repair"?"–":b.run+"/8"}</td><td><span class="chip ${c}"><span class="dot"></span>${l}</span></td><td class="mono">${Math.round(b.km).toLocaleString("uk-UA")}</td></tr>`}).join("")+`</tbody>`;
+}
+document.addEventListener("click",e=>{const id=e.target.closest("[data-fix]")?.dataset.fix;if(!id)return;
+  const inc=S.incidents.find(i=>i.id==id);const r=S.reserve.shift();if(!inc||!r)return;
+  const old=S.buses.find(b=>b.plate===inc.plate);old.status="repair";
+  S.buses.push({plate:r.plate,route:old.route,driver:r.driver,pos:old.pos,dir:old.dir,delay:9,status:"line",run:old.run,km:r.km});
+  inc.done=true;inc.repl=r.plate;S.banner[old.route]=S.t+40;
+  toast(`Авто ${r.plate} вийшло на маршрут №${old.route}`);renderAll()});
+
+/* ---- водій ---- */
+function renderDrv(){
+  const r=route(ME.route);const n=Math.min(r.stops.length-1,Math.floor(ME.pos*(r.stops.length-1))+1);
+  const [l,c]=ME.status==="repair"?["Авто передано в ремонт","s-idle"]:stat(ME);
+  $("#drv").innerHTML=`
+   <div class="card"><div class="row"><span>Наряд на ${new Date().toLocaleDateString("uk-UA")}</span><span class="rnum" style="background:${r.color}">${r.id}</span></div>
+     <b>${ME.driver}</b><div class="mono">${ME.plate} · Peugeot Boxer</div>
+     <ul class="steps"><li><span class="ok-mark">✓</span>Медогляд пройдено, 06:05</li><li><span class="ok-mark">✓</span>Техогляд пройдено, 06:12</li><li><span class="ok-mark">✓</span>Шляховий лист № 2026-1012-017</li></ul></div>
+   <div class="card"><h3 style="margin:0">Поточний рейс</h3>
+     <div class="row"><span>Рейс <b class="mono">${ME.run} з 8</b></span><span class="chip ${c}"><span class="dot"></span>${l}</span></div>
+     <div style="font-size:13px;color:var(--muted)">Наступна зупинка</div><div class="big">${ME.status==="line"?r.stops[ME.dir>0?n:r.stops.length-1-n]:"–"}</div></div>
+   ${ME.status==="line"?`<button class="btn dng" id="drv-break">Повідомити про поломку</button>`:
+     ME.status==="incident"?`<div class="banner">Повідомлення надіслано диспетчеру о ${fmt(S.incidents.at(-1).t)}. Зачекайте на команду.</div>`:
+     `<div class="banner">Диспетчер випустив резервне авто. Поверніться в парк, авто передано механіку.</div>`}
+   <div class="card" style="font-size:14px"><b>Повідомлення диспетчера</b><span style="color:var(--muted)">${ME.status==="repair"?"Повернутися в парк через вул. Липинського.":"Інтервал на маршруті 12 хв. Не обганяйте попереднє авто."}</span></div>`;
+  $("#drv-break")?.addEventListener("click",()=>{ME.status="incident";
+    S.incidents.push({id:S.incidents.length+1,type:"Поломка на лінії",t:S.t,route:ME.route,plate:ME.plate,driver:ME.driver});
+    toast("Інцидент передано диспетчеру");renderAll()});
+}
+
+/* ---- пасажир ---- */
+const pr=$("#pas-route"),ps=$("#pas-stop");
+pr.innerHTML=ROUTES.map(r=>`<option value="${r.id}">№${r.id} · ${r.name}</option>`).join("");
+function fillStops(){ps.innerHTML=route(pr.value).stops.map((s,i)=>`<option value="${i}">${s}</option>`).join("");ps.value="3"}
+pr.addEventListener("change",()=>{fillStops();renderPas()});ps.addEventListener("change",renderPas);fillStops();
+function renderPas(){
+  const r=route(pr.value),k=+ps.value/(r.stops.length-1);
+  const list=S.buses.filter(b=>b.route===r.id&&b.status==="line").map(b=>{let d=(k-b.pos);if(d<0)d+=1;return{b,min:Math.max(1,Math.round(d*48+Math.max(0,b.delay)*0.5))}}).sort((a,b)=>a.min-b.min).slice(0,3);
+  $("#pas-banner").innerHTML=S.banner[r.id]>S.t?`<div class="banner">На маршруті №${r.id} заміна авто. Можлива затримка до 10 хв.</div>`:"";
+  $("#pas-eta").innerHTML=list.length?list.map(x=>`<div class="eta"><span class="rnum" style="background:${r.color}">${r.id}</span><span><span class="mono">${x.b.plate}</span><br><span style="font-size:13px;color:var(--muted)">${x.b.delay>5?"запізнюється":"за розкладом"}</span></span><span class="min">${x.min} хв</span></div>`).join(""):`<p class="empty">Зараз на маршруті немає авто.</p>`;
+}
+$("#pas-form").addEventListener("submit",e=>{e.preventDefault();S.complaints++;toast("Скаргу зареєстровано, номер "+(1040+S.complaints));renderAll()});
+
+/* ---- керівник ---- */
+function renderMgr(){
+  const plan=ROUTES.reduce((s,r)=>s+r.plan,0)*8, done=S.buses.filter(b=>b.status!=="repair").reduce((s,b)=>s+b.run-1,0)+ 186;
+  const reg=Math.max(80,96.2-0.8*S.incidents.filter(i=>!i.done).length-0.4*S.buses.filter(b=>b.status==="line"&&b.delay>5).length-0.3*S.incidents.length);
+  const tot=Object.values(S.rev).reduce((s,v)=>s+v.leo+v.card+v.cash+v.lg,0);
+  const onLine=S.buses.filter(b=>b.status==="line").length, need=ROUTES.reduce((s,r)=>s+r.plan,0);
+  $("#kpis").innerHTML=`
+   <div class="panel kpi"><h3>Регулярність</h3><div class="v">${reg.toFixed(1)}%</div><div class="meter"><i style="width:${reg}%"></i><b style="left:90%"></b></div><div class="s">Поріг за договором – 90 %</div></div>
+   <div class="panel kpi"><h3>Випуск на лінію</h3><div class="v">${onLine} / ${need}</div><div class="s">${onLine>=need?"Планову кількість виконано":"Менше за план – можливий штраф"}</div></div>
+   <div class="panel kpi"><h3>Виручка</h3><div class="v mono" style="font-family:var(--f-display)">${Math.round(tot).toLocaleString("uk-UA")} ₴</div><div class="s">З початку зміни</div></div>
+   <div class="panel kpi"><h3>Інциденти і скарги</h3><div class="v">${S.incidents.length} / ${S.complaints}</div><div class="s">Сьогодні</div></div>`;
+  const max=Math.max(...Object.values(S.rev).map(v=>v.leo+v.card+v.cash+v.lg),1);
+  $("#rev").innerHTML=ROUTES.map(r=>{const v=S.rev[r.id],s=v.leo+v.card+v.cash+v.lg,w=x=>(x/max*100).toFixed(1)+"%";
+    return`<div class="barrow"><span class="rnum" style="background:${r.color};text-align:center">${r.id}</span><div class="track" title="№${r.id}"><span style="width:${w(v.leo)};background:var(--r25)"></span><span style="width:${w(v.card)};background:var(--r9)"></span><span style="width:${w(v.cash)};background:var(--accent)"></span><span style="width:${w(v.lg)};background:var(--idle)"></span></div><span class="mono" style="text-align:right">${Math.round(s).toLocaleString("uk-UA")} ₴</span></div>`}).join("");
+  const all=S.buses.concat(S.reserve.map(r=>({...r,status:"reserve"})));
+  const rows=all.map(b=>({b,left:Math.round(15000-b.km)})).sort((a,b)=>a.left-b.left).slice(0,6);
+  $("#to").innerHTML=`<thead><tr><th>Авто</th><th>Пробіг від ТО</th><th>До ТО</th></tr></thead><tbody>`+rows.map(x=>`<tr><td class="mono">${x.b.plate}</td><td class="mono">${Math.round(x.b.km).toLocaleString("uk-UA")} км</td><td>${x.left<=0?`<span class="chip s-bad"><span class="dot"></span>прострочено</span>`:x.left<=500?`<span class="chip s-bad"><span class="dot"></span>${x.left} км</span>`:x.left<=2000?`<span class="chip s-warn"><span class="dot"></span>${x.left.toLocaleString("uk-UA")} км</span>`:`<span class="chip s-ok"><span class="dot"></span>${x.left.toLocaleString("uk-UA")} км</span>`}</td></tr>`).join("")+`</tbody>`;
+}
+
+/* ---- симуляція ---- */
+ROUTES.forEach(r=>{const v=S.rev[r.id];v.leo=2600+rnd()*900;v.card=900+rnd()*400;v.cash=700+rnd()*300;v.lg=150+rnd()*80});
+function tick(){
+  S.t+=0.25;
+  S.buses.forEach(b=>{if(b.status!=="line")return;b.pos+=0.006*b.dir;if(b.pos>1){b.pos=0.999;b.dir=-1;b.run++}if(b.pos<0){b.pos=0.001;b.dir=1;b.run++}
+    if(rnd()<0.03)b.delay=Math.max(-2,Math.min(9,b.delay+(rnd()<0.5?-1:1)));b.km+=0.12;
+    const v=S.rev[b.route];v.leo+=23*(rnd()<0.5);v.card+=26*(rnd()<0.15);v.cash+=30*(rnd()<0.12);v.lg+=11.5*(rnd()<0.1)});
+  S.buses.forEach(b=>b.km=Math.round(b.km*100)/100);
+  renderAll();
+}
+let role="disp";
+function renderAll(){
+  ["#clock","#drv-clock","#pas-clock"].forEach(s=>$(s).textContent=fmt(S.t));
+  if(role==="disp")renderDisp();if(role==="drv")renderDrv();if(role==="pas")renderPas();if(role==="mgr")renderMgr();
+}
+function setRole(r){role=r;document.querySelectorAll(".roles button").forEach(b=>b.setAttribute("aria-selected",b.dataset.role===r));
+  ["disp","drv","pas","mgr"].forEach(x=>$("#v-"+x).hidden=x!==r);renderAll();try{localStorage.setItem("role",r)}catch(e){}}
+document.querySelectorAll(".roles button").forEach(b=>b.addEventListener("click",()=>setRole(b.dataset.role)));
+let start="disp";const h=location.hash.slice(1);if(["disp","drv","pas","mgr"].includes(h))start=h;
+setRole(start);
+const fast=matchMedia("(prefers-reduced-motion: reduce)").matches?2500:1000;
+setInterval(()=>{if(!document.hidden)tick()},fast);
+</script>
+</body>
+</html>
